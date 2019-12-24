@@ -7,16 +7,12 @@ import (
 	"github.com/sebnyberg/aoc2019/util"
 )
 
-type WireGrid struct {
-	FirstWire  []GridLine
-	SecondWire []GridLine
-	Port       Point
-}
+type Wire []GridLine
 
-type Direction int
+type LineType int
 
 const (
-	Horizontal Direction = iota
+	Horizontal LineType = iota
 	Vertical
 )
 
@@ -24,113 +20,140 @@ type Point struct {
 	X int
 	Y int
 }
+type Intersection struct {
+	Point
+	wireLength int
+}
 
 type GridLine struct {
-	Start     Point
-	End       Point
-	Direction Direction
+	Start    Point
+	End      Point
+	LineType LineType
+}
+
+func (l GridLine) Distance() int {
+	return l.Start.DistanceTo(l.End)
+}
+
+func WireLength(ls []GridLine) int {
+	sum := 0
+
+	for _, l := range ls {
+		sum += l.Distance()
+	}
+
+	return sum
+}
+
+func (w Wire) FindCrossingPoints(w2 Wire) []Intersection {
+	crossings := []Intersection{}
+	for w1idx, w1Line := range w {
+		for w2idx, w2Line := range w2 {
+			if crossingPoint := w1Line.CrossesLine(w2Line); crossingPoint != nil {
+				firstLength := WireLength(w[:w1idx])
+				secondLength := WireLength(w2[:w2idx])
+				totalLength := firstLength + secondLength
+				crossings = append(crossings, Intersection{
+					Point:      *crossingPoint,
+					wireLength: totalLength,
+				})
+			}
+		}
+	}
+
+	return crossings
 }
 
 func (l GridLine) CrossesLine(l2 GridLine) *Point {
 	// Two lines going in the same direction can't cross each other (in this task)
-	if l.Direction == l2.Direction {
+	if l.LineType == l2.LineType {
 		return nil
 	}
 
-	// If the first line is horizontal, check its y-coordinate against
-	// the y-coordinate interval of the other line
-	if l.Direction == Horizontal {
-		if l.Start.Y < l2.Start.Y && l.Start.Y > l2.End.Y ||
-			l.Start.Y > l2.Start.Y && l.Start.Y < l2.End.Y {
-			return &Point{
-				X: l2.Start.X,
-				Y: l.Start.Y,
-			}
-		}
-	} else if l.Direction == Vertical {
-		if l.Start.X < l2.Start.X && l.Start.X > l2.End.X ||
-			l.Start.X > l2.Start.X && l.Start.X < l2.End.X {
-			return &Point{
-				X: l.Start.X,
-				Y: l2.Start.Y,
-			}
-		}
+	var p *Point
+
+	var (
+		hLine GridLine
+		vLine GridLine
+	)
+	if l.LineType == Horizontal {
+		hLine = l
+		vLine = l2
+	} else {
+		hLine = l2
+		vLine = l
 	}
 
-	return nil
-}
-
-func NewGrid() WireGrid {
-	return WireGrid{
-		FirstWire:  nil,
-		SecondWire: nil,
-		Port: Point{
-			X: 0,
-			Y: 0,
-		},
+	crossesY := (hLine.Start.Y < vLine.Start.Y && hLine.Start.Y > vLine.End.Y ||
+		hLine.Start.Y > vLine.Start.Y && hLine.Start.Y < vLine.End.Y)
+	crossesX := (vLine.Start.X < hLine.Start.X && vLine.Start.X > hLine.End.X ||
+		vLine.Start.X > hLine.Start.X && vLine.Start.X < hLine.End.X)
+	if crossesX && crossesY {
+		p = &Point{
+			X: vLine.Start.X,
+			Y: hLine.Start.Y,
+		}
+		fmt.Printf("the line %v crosses the line %v in both axis in the point %v\n", hLine, vLine, p)
 	}
+
+	return p
 }
 
-func (g *WireGrid) PutWire(wiring []string) {
-	start := g.GetPort()
-	g.Grid[start.X][start.Y]++
+func CreateWire(wiring []string) Wire {
+	var wire Wire
+	start := Point{
+		X: 0,
+		Y: 0,
+	}
 
 	for _, part := range wiring {
 		direction := string(part[0])
 		steps, err := strconv.Atoi(string(part[1:]))
 		util.CheckErr(err)
-		if steps <= 1 {
-			panic("few steps LOL")
-		}
+
+		var (
+			end      Point
+			lineType LineType
+		)
 
 		switch direction {
 		case "U":
-			for i := 1; i <= steps; i++ {
-				g.Grid[start.X][start.Y+i]++
+			end = Point{
+				X: start.X,
+				Y: start.Y + steps,
 			}
-			start = Point{start.X, start.Y + steps}
+			lineType = Vertical
 		case "D":
-			for i := 1; i <= steps; i++ {
-				g.Grid[start.X][start.Y-i]++
+			end = Point{
+				X: start.X,
+				Y: start.Y - steps,
 			}
-			start = Point{start.X, start.Y - steps}
+			lineType = Vertical
 		case "R":
-			for i := 1; i <= steps; i++ {
-				g.Grid[start.X+i][start.Y]++
+			end = Point{
+				X: start.X + steps,
+				Y: start.Y,
 			}
-			start = Point{start.X + steps, start.Y}
+			lineType = Horizontal
 		case "L":
-			for i := 1; i <= steps; i++ {
-				g.Grid[start.X-i][start.Y]++
+			end = Point{
+				X: start.X - steps,
+				Y: start.Y,
 			}
-			start = Point{start.X - steps, start.Y}
+			lineType = Horizontal
 		default:
 			panic(fmt.Sprintf("unrecognized direction: %v", direction))
 		}
-	}
-}
-
-func (g *WireGrid) GetPort() Point {
-	return Point{GRID_SIZE / 2, GRID_SIZE / 2}
-}
-
-func (g *WireGrid) GetCrossings() []Point {
-	crossings := []Point{}
-
-	for i := range g.Grid {
-		for j := range g.Grid[i] {
-			if g.Grid[i][j] > 1 {
-				if i == j && i == GRID_SIZE/2 {
-					continue
-				}
-				crossings = append(crossings, Point{
-					X: i,
-					Y: j,
-				})
-			}
+		line := GridLine{
+			Start:    start,
+			End:      end,
+			LineType: lineType,
 		}
+		wire = append(wire, line)
+		start = end
 	}
-	return crossings
+
+	return wire
 }
 
 func (p Point) DistanceTo(p2 Point) int {

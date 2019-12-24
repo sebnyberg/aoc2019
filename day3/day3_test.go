@@ -7,14 +7,14 @@ import (
 
 	"github.com/sebnyberg/aoc2019/day3"
 	"github.com/sebnyberg/aoc2019/util"
+	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 )
 
 func TestDay3(t *testing.T) {
 	fileWires := util.ReadFile("day3_input")
-
-	firstWire := strings.Split(fileWires[0], ",")
-	secondWire := strings.Split(fileWires[1], ",")
+	first := strings.Split(fileWires[0], ",")
+	second := strings.Split(fileWires[1], ",")
 
 	tcs := []struct {
 		input    [][]string
@@ -43,30 +43,33 @@ func TestDay3(t *testing.T) {
 		},
 		{
 			input: [][]string{
-				firstWire,
-				secondWire,
+				first,
+				second,
 			},
-			expected: 10,
+			expected: 4981,
 		},
 	}
 
 	for idx, tc := range tcs {
 		t.Run(fmt.Sprintf("test_%v", idx), func(t *testing.T) {
-			grid := day3.NewGrid()
+			firstWire := day3.CreateWire(tc.input[0])
+			secondWire := day3.CreateWire(tc.input[1])
 
-			port := grid.GetPort()
-			grid.PutWire(tc.input[0])
-			grid.PutWire(tc.input[1])
+			fmt.Printf("wire two: %v\n", firstWire)
+			fmt.Printf("wire one: %v\n", secondWire)
 
-			crossings := grid.GetCrossings()
-			fmt.Println(crossings)
+			minDistance := 1000000000
 
-			minDistance := 1024 * 2
-
-			for _, crossing := range crossings {
-				distance := port.DistanceTo(crossing)
+			startingPoint := day3.Point{
+				X: 0,
+				Y: 0,
+			}
+			crossingPoints := firstWire.FindCrossingPoints(secondWire)
+			require.Greater(t, len(crossingPoints), 1)
+			for _, crossing := range firstWire.FindCrossingPoints(secondWire) {
+				distance := startingPoint.DistanceTo(crossing.Point)
 				if distance < minDistance {
-					fmt.Printf("new min distance for points %v and %v, distance: %v\n", port, crossing, distance)
+					fmt.Printf("new min distance for points %v and %v, distance: %v\n", startingPoint, crossing, distance)
 					minDistance = distance
 				}
 			}
