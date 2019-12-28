@@ -20,9 +20,9 @@ func main() {
 	// original[225] = 5
 
 	// original[225] = 5
-	original = []int{3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31,
-		1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104,
-		999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99}
+	// original = []int{3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31,
+	// 	1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104,
+	// 	999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99}
 	// original = []int{
 	// 	3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9,
 	// }
@@ -40,27 +40,27 @@ func main() {
 type OpCode int
 
 const (
-	OpCode_ADD            OpCode = 1
-	OpCode_MULTIPLY       OpCode = 2
-	OpCode_SET_INPUT_ADDR OpCode = 3
-	OpCode_DO_OUTPUT      OpCode = 4
-	OpCode_JUMP_IF_TRUE   OpCode = 5
-	OpCode_JUMP_IF_FALSE  OpCode = 6
-	OpCode_LESS_THAN      OpCode = 7
-	OpCode_EQUALS         OpCode = 8
-	OpCode_EXIT           OpCode = 99
+	OpCode_ADD           OpCode = 1
+	OpCode_MULTIPLY      OpCode = 2
+	OpCode_INPUT         OpCode = 3
+	OpCode_OUTPUT        OpCode = 4
+	OpCode_JUMP_IF_TRUE  OpCode = 5
+	OpCode_JUMP_IF_FALSE OpCode = 6
+	OpCode_LESS_THAN     OpCode = 7
+	OpCode_EQUALS        OpCode = 8
+	OpCode_EXIT          OpCode = 99
 )
 
 var opcodeMap = map[OpCode]string{
-	OpCode_ADD:            "add",
-	OpCode_MULTIPLY:       "mul",
-	OpCode_SET_INPUT_ADDR: "input",
-	OpCode_DO_OUTPUT:      "output",
-	OpCode_JUMP_IF_TRUE:   "jump if true",
-	OpCode_JUMP_IF_FALSE:  "jump if false",
-	OpCode_LESS_THAN:      "lt",
-	OpCode_EQUALS:         "eq",
-	OpCode_EXIT:           "exit",
+	OpCode_ADD:           "add",
+	OpCode_MULTIPLY:      "mul",
+	OpCode_INPUT:         "input",
+	OpCode_OUTPUT:        "output",
+	OpCode_JUMP_IF_TRUE:  "jump if true",
+	OpCode_JUMP_IF_FALSE: "jump if false",
+	OpCode_LESS_THAN:     "lt",
+	OpCode_EQUALS:        "eq",
+	OpCode_EXIT:          "exit",
 }
 
 func (oc OpCode) String() string {
@@ -108,7 +108,7 @@ func (c *IntcodeComputer) Read() int {
 
 func (c *IntcodeComputer) ReadParam(pm ParameterMode) int {
 	p := c.Read()
-	if pm != ParameterMode_POSITION {
+	if pm == ParameterMode_IMMEDIATE {
 		return p
 	}
 	return c.Memory[p]
@@ -139,7 +139,7 @@ func (c *IntcodeComputer) Output(pms []ParameterMode) {
 	fmt.Println()
 }
 
-func (c *IntcodeComputer) SetInput() {
+func (c *IntcodeComputer) Input() {
 	p := c.Read()
 
 	reader := bufio.NewReader(os.Stdin)
@@ -157,7 +157,7 @@ func (c *IntcodeComputer) SetInput() {
 
 func (c *IntcodeComputer) JumpIfTrue(pms []ParameterMode) {
 	p1 := c.ReadParam(pms[0])
-	p2 := c.Read()
+	p2 := c.ReadParam(pms[1])
 
 	fmt.Printf("JUMP IF TRUE (!=0) [%v]: (%v)", pms[0], p1)
 	if p1 != 0 {
@@ -170,7 +170,7 @@ func (c *IntcodeComputer) JumpIfTrue(pms []ParameterMode) {
 
 func (c *IntcodeComputer) JumpIfFalse(pms []ParameterMode) {
 	p1 := c.ReadParam(pms[0])
-	p2 := c.Read()
+	p2 := c.ReadParam(pms[1])
 
 	fmt.Printf("JUMP IF FALSE (==0) [%v]: (%v)", pms[0], p1)
 	if p1 == 0 {
@@ -232,10 +232,10 @@ func (c *IntcodeComputer) Run(debug bool) {
 			c.Add(pms)
 		case OpCode_MULTIPLY:
 			c.Multiply(pms)
-		case OpCode_DO_OUTPUT:
+		case OpCode_OUTPUT:
 			c.Output(pms)
-		case OpCode_SET_INPUT_ADDR:
-			c.SetInput()
+		case OpCode_INPUT:
+			c.Input()
 		case OpCode_JUMP_IF_FALSE:
 			c.JumpIfFalse(pms)
 		case OpCode_JUMP_IF_TRUE:
