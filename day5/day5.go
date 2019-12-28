@@ -10,6 +10,21 @@ import (
 	"strings"
 )
 
+func main() {
+	var fp = flag.String("filepath", "day5_input", "path to file")
+
+	original := getInput(*fp)
+	original[225] = 1
+
+	ic := IntcodeComputer{
+		Memory: original,
+	}
+	ic.Run()
+
+	// result := RunIntegerMachine(original)
+	fmt.Println(ic.Memory)
+}
+
 type OpCode int
 
 const (
@@ -17,6 +32,10 @@ const (
 	OpCode_MULTIPLY       OpCode = 2
 	OpCode_SET_INPUT_ADDR OpCode = 3
 	OpCode_DO_OUTPUT      OpCode = 4
+	OpCode_JUMP_IF_TRUE   OpCode = 5
+	OpCode_JUMP_IF_FALSE  OpCode = 6
+	OpCode_LESS_THAN      OpCode = 7
+	OpCode_EQUALS         OpCode = 8
 	OpCode_EXIT           OpCode = 99
 )
 
@@ -25,6 +44,10 @@ var opcodeMap = map[OpCode]string{
 	OpCode_MULTIPLY:       "mul",
 	OpCode_SET_INPUT_ADDR: "input",
 	OpCode_DO_OUTPUT:      "output",
+	OpCode_JUMP_IF_TRUE:   "jump if true",
+	OpCode_JUMP_IF_FALSE:  "jump if false",
+	OpCode_LESS_THAN:      "lt",
+	OpCode_EQUALS:         "eq",
 	OpCode_EXIT:           "exit",
 }
 
@@ -57,6 +80,7 @@ func checkErr(err error) {
 type IntcodeComputer struct {
 	Memory    []int
 	InputAddr int
+	IP        int
 }
 
 type Instruction struct {
@@ -64,200 +88,138 @@ type Instruction struct {
 	ParameterModes [3]ParameterMode
 }
 
-func (c *IntcodeComputer) Add(instr *Instruction, idx int) {
-	paramVals := [2]int{}
-	switch instr.ParameterModes[0] {
-	case ParameterMode_POSITION:
-		paramVals[0] = c.Memory[c.Memory[idx]]
-	case ParameterMode_IMMEDIATE:
-		paramVals[0] = c.Memory[idx]
-	}
-
-	switch instr.ParameterModes[1] {
-	case ParameterMode_POSITION:
-		paramVals[1] = c.Memory[c.Memory[idx+1]]
-	case ParameterMode_IMMEDIATE:
-		paramVals[1] = c.Memory[idx+1]
-	}
-	fmt.Printf("Adding numbers %v and %v together and putting it in memory at address index %v\n", paramVals[0], paramVals[1], idx+2)
-
-	c.Memory[c.Memory[idx+2]] = paramVals[0] + paramVals[1]
+func (c *IntcodeComputer) Read() int {
+	val := c.Memory[c.IP]
+	c.IP++
+	return val
 }
 
-func (c *IntcodeComputer) Multiply(instr *Instruction, idx int) {
-	paramVals := [2]int{}
-	switch instr.ParameterModes[0] {
-	case ParameterMode_POSITION:
-		paramVals[0] = c.Memory[c.Memory[idx]]
-	case ParameterMode_IMMEDIATE:
-		paramVals[0] = c.Memory[idx]
+func (c *IntcodeComputer) ReadParam(pm ParameterMode) int {
+	p := c.Read()
+	if pm != ParameterMode_POSITION {
+		return p
 	}
-
-	switch instr.ParameterModes[1] {
-	case ParameterMode_POSITION:
-		paramVals[1] = c.Memory[c.Memory[idx+1]]
-	case ParameterMode_IMMEDIATE:
-		paramVals[1] = c.Memory[idx+1]
-	}
-
-	fmt.Printf("Multiplying numbers %v and %v together and putting it in memory at address index %v\n", paramVals[0], paramVals[1], idx+2)
-	c.Memory[c.Memory[idx+2]] = paramVals[0] * paramVals[1]
+	return c.Memory[p]
 }
 
-func (c *IntcodeComputer) Output(instr *Instruction, idx int) {
-	var paramVal int
-	switch instr.ParameterModes[0] {
-	case ParameterMode_POSITION:
-		paramVal = c.Memory[c.Memory[idx]]
-	case ParameterMode_IMMEDIATE:
-		paramVal = c.Memory[idx]
-	}
-	c.Memory[c.InputAddr] = paramVal
-	fmt.Printf("Outputting number %v and putting it in memory at address index %v\n", paramVal, c.InputAddr)
+func (c *IntcodeComputer) Add(pm1 ParameterMode, pm2 ParameterMode) {
+	p1 := c.ReadParam(pm1)
+	p2 := c.ReadParam(pm2)
+	p3 := c.Read()
+
+	fmt.Printf("Adding numbers %v and %v together and putting it in memory at address index %v\n", p1, p2, p3)
+	c.Memory[p3] = p1 + p2
 }
 
-func (c *IntcodeComputer) SetInput(instr *Instruction, idx int) {
-	fmt.Printf("Setting input address to be %v\n", c.Memory[idx])
-	c.InputAddr = c.Memory[idx]
+func (c *IntcodeComputer) Multiply(pm1 ParameterMode, pm2 ParameterMode) {
+	p1 := c.ReadParam(pm1)
+	p2 := c.ReadParam(pm2)
+	p3 := c.Read()
+
+	fmt.Printf("Multiplying numbers %v and %v together and putting it in memory at address index %v\n", p1, p2, p3)
+	c.Memory[p3] = p1 * p2
+}
+
+func (c *IntcodeComputer) Output(pm ParameterMode) {
+	p := c.ReadParam(pm)
+
+	c.Memory[c.InputAddr] = p
+	fmt.Printf("Outputting number %v and putting it in memory at address index %v\n", p, c.InputAddr)
+}
+
+func (c *IntcodeComputer) SetInput() {
+	p := c.Read()
+	fmt.Printf("Setting input address to be %v\n", c.Memory[p])
+	c.InputAddr = c.Memory[p]
+}
+
+func (c *IntcodeComputer) JumpIfTrue(pms []ParameterMode) {
+	p1 := c.ReadParam(pms[0])
+	p2 := c.ReadParam(pms[1])
+
+	fmt.Printf("Jumping to %v if %v is non-zero...\n", p1, p2)
+	if p1 != 0 {
+		c.IP = p2
+	}
+}
+
+func (c *IntcodeComputer) JumpIfFalse(pms []ParameterMode) {
+	p1 := c.ReadParam(pms[0])
+	p2 := c.ReadParam(pms[1])
+
+	fmt.Printf("Jumping to %v if %v is zero...\n", p1, p2)
+	if p1 == 0 {
+		c.IP = p2
+	}
+}
+
+func (c *IntcodeComputer) LessThan(pms []ParameterMode) {
+	p1 := c.ReadParam(pms[0])
+	p2 := c.ReadParam(pms[1])
+	p3 := c.ReadParam(pms[2])
+	fmt.Printf("If %v is less than %v, stores 1 in %v, otherwise 0\n", p1, p2, p3)
+	if p1 < p2 {
+		c.Memory[p3] = 1
+	} else {
+		c.Memory[p3] = 0
+	}
+}
+
+func (c *IntcodeComputer) Equals(pms []ParameterMode) {
+	p1 := c.ReadParam(pms[0])
+	p2 := c.ReadParam(pms[1])
+	p3 := c.ReadParam(pms[2])
+	fmt.Printf("If %v equals %v, stores 1 in %v, otherwise 0\n", p1, p2, p3)
+	if p1 == p2 {
+		c.Memory[p3] = 1
+	} else {
+		c.Memory[p3] = 0
+	}
 }
 
 func (c *IntcodeComputer) Run() {
-	idx := 0
-	for idx < len(c.Memory) {
-		instr := NewInstruction(c.Memory[idx])
-		switch instr.Operation {
+	for c.IP < len(c.Memory) {
+		op, parameterModes := c.readInstruction()
+		switch op {
 		case OpCode_EXIT:
 			return
 		case OpCode_ADD:
-			fmt.Printf("instr: %v\nmemory %v\n", instr, c.Memory[idx+1:idx+4])
-			c.Add(instr, idx+1)
-			idx += 4
+			fmt.Printf("op: %v, pms: %v\nmemory %v\n", op, parameterModes, c.Memory[c.IP:c.IP+3])
+			c.Add(parameterModes[0], parameterModes[1])
 		case OpCode_MULTIPLY:
-			fmt.Printf("instr: %v\nmemory %v\n", instr, c.Memory[idx+1:idx+4])
-			c.Multiply(instr, idx+1)
-			idx += 4
+			fmt.Printf("op: %v, pms: %v\nmemory %v\n", op, parameterModes, c.Memory[c.IP:c.IP+3])
+			c.Multiply(parameterModes[0], parameterModes[1])
 		case OpCode_DO_OUTPUT:
-			fmt.Printf("instr: %v\nmemory %v\n", instr, c.Memory[idx+1:idx+2])
-			c.Output(instr, idx+1)
-			idx += 2
+			fmt.Printf("op: %v, pms: %v\nmemory %v\n", op, parameterModes, c.Memory[c.IP:c.IP+1])
+			c.Output(parameterModes[0])
 		case OpCode_SET_INPUT_ADDR:
-			fmt.Printf("instr: %v\nmemory %v\n", instr, c.Memory[idx+1:idx+2])
-			c.SetInput(instr, idx+1)
-			idx += 2
+			fmt.Printf("op: %v, pms: %v\nmemory %v\n", op, parameterModes, c.Memory[c.IP:c.IP+1])
+			c.SetInput()
 		default:
 			panic("dafuque")
 		}
 	}
 }
 
-func NewInstruction(raw int) *Instruction {
-	inst := new(Instruction)
+func (c *IntcodeComputer) readInstruction() (OpCode, []ParameterMode) {
+	code := c.Read()
 
-	opCode := OpCode(raw % 100)
+	opCode := OpCode(code % 100)
 
-	inst.ParameterModes = [3]ParameterMode{
-		ParameterMode(raw / 100 & 1),
-		ParameterMode(raw / 1000 & 1),
-		ParameterMode(raw / 10000 & 1),
+	parameterModes := []ParameterMode{
+		ParameterMode(code / 100 & 1),
+		ParameterMode(code / 1000 & 1),
+		ParameterMode(code / 10000 & 1),
 	}
 
 	switch opCode {
 	case OpCode_ADD, OpCode_MULTIPLY, OpCode_DO_OUTPUT, OpCode_SET_INPUT_ADDR, OpCode_EXIT:
-		inst.Operation = opCode
-		return inst
+		break
 	default:
-		panic(fmt.Sprintf("failed to parse %v as instruction\n", raw))
-	}
-}
-
-func main() {
-	var fp = flag.String("filepath", "day5_input", "path to file")
-
-	original := getInput(*fp)
-	original[225] = 1
-
-	ic := IntcodeComputer{
-		Memory: original,
-	}
-	ic.Run()
-
-	// result := RunIntegerMachine(original)
-	fmt.Println(ic.Memory)
-}
-
-func RunIntegerMachine(memory []int) []int {
-	// ugly fix
-	memory[225] = 1
-	skip := 0
-	outputToAddr := -1
-	for idx := range memory {
-		if skip > 0 {
-			skip--
-			continue
-		}
-
-		instruction := memory[idx]
-
-		// exit condition
-		if OpCode(instruction) == OpCode_EXIT {
-			return memory
-		}
-
-		p1 := ParameterMode(instruction / 100 & 1)
-		p2 := ParameterMode(instruction / 1000 & 1)
-
-		fmt.Printf("instruction: %v\n", instruction)
-		fmt.Printf("parameter modes: p1: %v, p2: %v\n", p1, p2)
-		switch OpCode(instruction % 100) {
-		case OpCode_SET_INPUT_ADDR:
-			fmt.Println("waiting for input...")
-			outputToAddr = memory[idx+1]
-			skip = 1
-		case OpCode_DO_OUTPUT:
-			if outputToAddr == -1 {
-				panic("wth no output address???")
-			}
-			if p1 == ParameterMode_IMMEDIATE {
-				memory[outputToAddr] = memory[idx+1]
-			} else {
-				memory[outputToAddr] = memory[memory[idx+1]]
-			}
-			skip = 1
-		case OpCode_ADD:
-			vals := [2]int{}
-			if p1 == ParameterMode_IMMEDIATE {
-				vals[0] = memory[idx+1]
-			} else {
-				vals[0] = memory[memory[idx+1]]
-			}
-			if p2 == ParameterMode_IMMEDIATE {
-				vals[1] = memory[idx+2]
-			} else {
-				vals[1] = memory[memory[idx+2]]
-			}
-			fmt.Printf("adding numbers %v + %v = %v and putting in %v\n", vals[0], vals[1], vals[0]+vals[1], memory[idx+3])
-			memory[memory[idx+3]] = vals[0] + vals[1]
-			skip = 3
-		case OpCode_MULTIPLY:
-			vals := [2]int{}
-			if p1 == ParameterMode_IMMEDIATE {
-				vals[0] = memory[idx+1]
-			} else {
-				vals[0] = memory[memory[idx+1]]
-			}
-			if p2 == ParameterMode_IMMEDIATE {
-				vals[1] = memory[idx+2]
-			} else {
-				vals[1] = memory[memory[idx+2]]
-			}
-			memory[memory[idx+3]] = vals[0] * vals[1]
-			skip = 3
-		default:
-			panic(fmt.Sprintf("wtf are you doing here?? got opcode %v", instruction))
-		}
+		panic(fmt.Sprintf("failed to parse %v as instruction\n", code))
 	}
 
-	return memory
+	return opCode, parameterModes
 }
 
 func getInput(filepath string) []int {
