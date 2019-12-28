@@ -17,36 +17,57 @@ func TestDay3(t *testing.T) {
 	second := strings.Split(fileWires[1], ",")
 
 	tcs := []struct {
-		input    [][]string
-		expected int
+		input     [][]string
+		expected  int
+		doClosest bool
 	}{
 		{
 			input: [][]string{
 				[]string{"R8", "U5", "L5", "D3"},
 				[]string{"U7", "R6", "D4", "L4"},
 			},
-			expected: 6,
+			expected:  6,
+			doClosest: true,
+		},
+		{
+			input: [][]string{
+				[]string{"R8", "U5", "L5", "D3"},
+				[]string{"U7", "R6", "D4", "L4"},
+			},
+			expected:  30,
+			doClosest: false,
 		},
 		{
 			input: [][]string{
 				[]string{"R75", "D30", "R83", "U83", "L12", "D49", "R71", "U7", "L72"},
 				[]string{"U62", "R66", "U55", "R34", "D71", "R55", "D58", "R83"},
 			},
-			expected: 159,
+			expected:  159,
+			doClosest: true,
 		},
 		{
 			input: [][]string{
 				[]string{"R98", "U47", "R26", "D63", "R33", "U87", "L62", "D20", "R33", "U53", "R51"},
 				[]string{"U98", "R91", "D20", "R16", "D67", "R40", "U7", "R15", "U6", "R7"},
 			},
-			expected: 135,
+			expected:  135,
+			doClosest: true,
 		},
 		{
 			input: [][]string{
 				first,
 				second,
 			},
-			expected: 4981,
+			expected:  4981,
+			doClosest: true,
+		},
+		{
+			input: [][]string{
+				first,
+				second,
+			},
+			expected:  10,
+			doClosest: false,
 		},
 	}
 
@@ -54,9 +75,6 @@ func TestDay3(t *testing.T) {
 		t.Run(fmt.Sprintf("test_%v", idx), func(t *testing.T) {
 			firstWire := day3.CreateWire(tc.input[0])
 			secondWire := day3.CreateWire(tc.input[1])
-
-			fmt.Printf("wire two: %v\n", firstWire)
-			fmt.Printf("wire one: %v\n", secondWire)
 
 			minDistance := 1000000000
 
@@ -67,7 +85,12 @@ func TestDay3(t *testing.T) {
 			crossingPoints := firstWire.FindCrossingPoints(secondWire)
 			require.Greater(t, len(crossingPoints), 1)
 			for _, crossing := range firstWire.FindCrossingPoints(secondWire) {
-				distance := startingPoint.DistanceTo(crossing.Point)
+				var distance int
+				if tc.doClosest {
+					distance = startingPoint.DistanceTo(crossing.Point)
+				} else {
+					distance = crossing.WireLength
+				}
 				if distance < minDistance {
 					fmt.Printf("new min distance for points %v and %v, distance: %v\n", startingPoint, crossing, distance)
 					minDistance = distance

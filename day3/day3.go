@@ -22,7 +22,7 @@ type Point struct {
 }
 type Intersection struct {
 	Point
-	wireLength int
+	WireLength int
 }
 
 type GridLine struct {
@@ -45,17 +45,23 @@ func WireLength(ls []GridLine) int {
 	return sum
 }
 
+// 164556: too high!
+// 162270: too low!
+
 func (w Wire) FindCrossingPoints(w2 Wire) []Intersection {
 	crossings := []Intersection{}
 	for w1idx, w1Line := range w {
 		for w2idx, w2Line := range w2 {
 			if crossingPoint := w1Line.CrossesLine(w2Line); crossingPoint != nil {
-				firstLength := WireLength(w[:w1idx])
-				secondLength := WireLength(w2[:w2idx])
+				// fmt.Printf("calculating length of wires that ends in point %v\n", crossingPoint)
+				firstLength := WireLength(w[:w1idx]) + w1Line.Start.DistanceTo(*crossingPoint)
+				// fmt.Printf("first length of wire %v, then to %v: %v\n", w[:w1idx], crossingPoint, firstLength)
+				secondLength := WireLength(w2[:w2idx]) + w2Line.Start.DistanceTo(*crossingPoint)
+				// fmt.Printf("length of second wire %v, then to %v: %v\n", w2[:w2idx], crossingPoint, secondLength)
 				totalLength := firstLength + secondLength
 				crossings = append(crossings, Intersection{
 					Point:      *crossingPoint,
-					wireLength: totalLength,
+					WireLength: totalLength,
 				})
 			}
 		}
@@ -93,7 +99,6 @@ func (l GridLine) CrossesLine(l2 GridLine) *Point {
 			X: vLine.Start.X,
 			Y: hLine.Start.Y,
 		}
-		fmt.Printf("the line %v crosses the line %v in both axis in the point %v\n", hLine, vLine, p)
 	}
 
 	return p
