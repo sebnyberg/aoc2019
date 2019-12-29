@@ -1,10 +1,9 @@
-package day7_test
+package util
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/sebnyberg/aoc2019/day7"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +33,7 @@ func Test_Perm(t *testing.T) {
 	}
 	for idx, tc := range tcs {
 		t.Run(fmt.Sprintf("test_%d", idx), func(t *testing.T) {
-			res := day7.GetAllPerms(tc.in)
+			res := day7part2.GetAllPerms(tc.in)
 			require.Equal(t, tc.out, res)
 		})
 	}

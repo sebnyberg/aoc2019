@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sebnyberg/aoc2019/day7"
+	day7 "github.com/sebnyberg/aoc2019/day7part1"
 	"github.com/sebnyberg/aoc2019/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
