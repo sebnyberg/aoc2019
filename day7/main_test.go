@@ -2,11 +2,39 @@ package day7_test
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/sebnyberg/aoc2019/day7"
+	"github.com/sebnyberg/aoc2019/util"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_FindMaxThrust(t *testing.T) {
+	inputStrs := strings.Split(util.ReadFile("input")[0], ",")
+	program := make([]int, len(inputStrs))
+	for idx, is := range inputStrs {
+		i, err := strconv.Atoi(is)
+		util.CheckErr(err)
+		program[idx] = i
+	}
+
+	maxThrust := 0
+	maxPhases := make([]int, 5)
+	for _, phases := range day7.GetAllPerms([]int{0, 1, 2, 3, 4}) {
+		thrust, err := getThrust(program, phases)
+		require.Nil(t, err)
+		if thrust > maxThrust {
+			maxPhases = phases
+			maxThrust = thrust
+		}
+	}
+
+	assert.Nil(t, maxPhases)
+	assert.Nil(t, maxThrust)
+}
 
 func getThrust(program []int, phases []int) (int, error) {
 	var (
@@ -14,7 +42,7 @@ func getThrust(program []int, phases []int) (int, error) {
 		err    error
 	)
 	for _, p := range phases {
-		output, err = day7.RunProgram(program, []int{p, output}, true)
+		output, err = day7.RunProgram(program, []int{p, output}, false)
 		if err != nil {
 			return 0, err
 		}
